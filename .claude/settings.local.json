@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/Shaheryar/Desktop/Personal/LinkedinBot -type f -name *.json -o -name *.js -o -name *.ts -o -name *.md)",
+      "Bash(cd frontend:*)",
+      "Bash(npm run:*)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(npm.cmd install:*)"
+    ]
+  }
+}
