@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: linkedin-automation-bot
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: "" # Leave empty to run in-memory, or provide a MongoDB URI to persist data
+      - key: ENCRYPTION_KEY
+        generateValue: true # Generates a random key automatically on Render
+      - key: JWT_SECRET
+        generateValue: true # Generates a random key automatically on Render
+      - key: LLM_PROVIDER
+        value: openai # 'openai' or 'gemini'
+      - key: OPENAI_API_KEY
+        value: "" # Optional, can be set here or in the UI
+      - key: GEMINI_API_KEY
+        value: "" # Optional, can be set here or in the UI
