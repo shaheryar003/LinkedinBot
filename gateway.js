@@ -2,11 +2,32 @@ const http = require('http');
 const { spawn } = require('child_process');
 const path = require('path');
 
-const PORT = process.env.PORT || 10000;
-const FRONTEND_PORT = 3000;
-const BACKEND_PORT = 3001;
+// Get the gateway's public port from Render
+const PORT = parseInt(process.env.PORT || '10000', 10);
+
+// Choose internal ports that do not conflict with the public port
+let FRONTEND_PORT = 3002;
+let BACKEND_PORT = 3005;
+
+// If public PORT conflicts with FRONTEND_PORT, shift FRONTEND_PORT
+if (PORT === FRONTEND_PORT) {
+  FRONTEND_PORT = 3008;
+}
+
+// If public PORT conflicts with BACKEND_PORT, shift BACKEND_PORT
+if (PORT === BACKEND_PORT) {
+  BACKEND_PORT = 3009;
+}
+
+// Ensure FRONTEND_PORT and BACKEND_PORT don't conflict with each other
+if (FRONTEND_PORT === BACKEND_PORT) {
+  BACKEND_PORT = FRONTEND_PORT + 1;
+}
 
 console.log('Starting LinkedIn Bot Unified Gateway...');
+console.log(`Gateway Public Port: ${PORT}`);
+console.log(`Internal Frontend Port: ${FRONTEND_PORT}`);
+console.log(`Internal Backend Port: ${BACKEND_PORT}`);
 
 // Start Frontend (Next.js Standalone)
 const frontendPath = path.join(__dirname, 'frontend', 'server.js');
@@ -17,6 +38,7 @@ const frontend = spawn('node', [frontendPath], {
   env: {
     ...process.env,
     PORT: FRONTEND_PORT,
+    HOSTNAME: '127.0.0.1', // Override Render's HOSTNAME to force binding to loopback
     NODE_ENV: 'production'
   }
 });
@@ -30,6 +52,7 @@ const backend = spawn('node', [backendPath], {
   env: {
     ...process.env,
     PORT: BACKEND_PORT,
+    HOSTNAME: '127.0.0.1', // Override Render's HOSTNAME to force binding to loopback
     NODE_ENV: 'production'
   }
 });
