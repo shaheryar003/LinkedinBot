@@ -12,6 +12,10 @@ interface Settings {
   postingMethod: string;
   postingTimes: string[];
   openaiApiKey: string | null;
+  llmProvider: string;
+  openaiModel: string | null;
+  geminiApiKey: string | null;
+  geminiModel: string | null;
   isActive: boolean;
   pageUrl: string;
   organizationId: string | null;
@@ -26,6 +30,10 @@ export default function SettingsPage() {
     postingMethod: 'puppeteer',
     postingTimes: ['09:00', '15:00'],
     openaiApiKey: '',
+    llmProvider: 'openai',
+    openaiModel: 'gpt-4o-mini',
+    geminiApiKey: '',
+    geminiModel: 'gemini-1.5-flash',
     isActive: true,
     pageUrl: 'DigitalKarvan',
     organizationId: '',
@@ -120,6 +128,30 @@ export default function SettingsPage() {
       setModalContent({
         title: 'Error',
         message: 'Failed to test OpenAI connection',
+        type: 'error'
+      });
+      setModalOpen(true);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  const handleTestGemini = async () => {
+    try {
+      setTestingConnection(true);
+      setError(null);
+      setSuccess(null);
+      const res = await settingsApi.testGemini();
+      setModalContent({
+        title: res.data.success ? 'Success' : 'Error',
+        message: res.data.success ? 'Gemini connection successful' : 'Gemini connection failed',
+        type: res.data.success ? 'success' : 'error'
+      });
+      setModalOpen(true);
+    } catch (error) {
+      setModalContent({
+        title: 'Error',
+        message: 'Failed to test Gemini connection',
         type: 'error'
       });
       setModalOpen(true);
@@ -254,30 +286,102 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* OpenAI Settings */}
+        {/* AI Provider Settings */}
         <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">OpenAI Configuration</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4 font-semibold">AI Content Generator Configuration</h3>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                OpenAI API Key
+              <label className="block text-sm font-medium text-gray-700 mb-2 font-semibold">
+                AI Provider
               </label>
-              <input
-                type="password"
-                value={settings.openaiApiKey || ''}
-                onChange={(e) => setSettings({ ...settings, openaiApiKey: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="sk-..."
-              />
+              <select
+                value={settings.llmProvider || 'openai'}
+                onChange={(e) => setSettings({ ...settings, llmProvider: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-gray-50 font-medium"
+              >
+                <option value="openai">OpenAI (ChatGPT)</option>
+                <option value="gemini">Google Gemini</option>
+              </select>
             </div>
 
-            <button
-              onClick={handleTestOpenAI}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Test OpenAI Connection
-            </button>
+            {/* OpenAI Sub-config */}
+            {(settings.llmProvider === 'openai' || !settings.llmProvider) && (
+              <div className="border-t border-gray-100 pt-4 space-y-4">
+                <h4 className="text-sm font-semibold text-gray-800">OpenAI Settings</h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    OpenAI API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={settings.openaiApiKey || ''}
+                    onChange={(e) => setSettings({ ...settings, openaiApiKey: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="sk-..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    OpenAI Model
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.openaiModel || 'gpt-4o-mini'}
+                    onChange={(e) => setSettings({ ...settings, openaiModel: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="gpt-4o-mini"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTestOpenAI}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Test OpenAI Connection
+                </button>
+              </div>
+            )}
+
+            {/* Gemini Sub-config */}
+            {settings.llmProvider === 'gemini' && (
+              <div className="border-t border-gray-100 pt-4 space-y-4">
+                <h4 className="text-sm font-semibold text-gray-800">Google Gemini Settings</h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Gemini API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={settings.geminiApiKey || ''}
+                    onChange={(e) => setSettings({ ...settings, geminiApiKey: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="AIzaSy..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Gemini Model
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.geminiModel || 'gemini-1.5-flash'}
+                    onChange={(e) => setSettings({ ...settings, geminiModel: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="gemini-1.5-flash"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTestGemini}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Test Gemini Connection
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -376,6 +480,10 @@ interface Settings {
   postingMethod: string;
   postingTimes: string[];
   openaiApiKey: string | null;
+  llmProvider: string;
+  openaiModel: string | null;
+  geminiApiKey: string | null;
+  geminiModel: string | null;
   isActive: boolean;
   pageUrl: string;
   organizationId: string | null;

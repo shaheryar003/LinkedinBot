@@ -38,6 +38,7 @@ export const settingsApi = {
   testLinkedIn: (method: 'puppeteer' | 'api') =>
     api.post('/api/settings/test-linkedin', null, { params: { method } }),
   testOpenAI: () => api.post('/api/settings/test-openai'),
+  testGemini: () => api.post('/api/settings/test-gemini'),
 };
 
 // News API

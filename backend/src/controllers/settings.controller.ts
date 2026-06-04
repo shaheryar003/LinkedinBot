@@ -29,6 +29,7 @@ export const getSettings = async (_req: Request, res: Response) => {
       linkedinApiToken: settings.linkedinApiToken ? '***' : null,
       linkedinApiSecret: settings.linkedinApiSecret ? '***' : null,
       openaiApiKey: settings.openaiApiKey ? '***' : null,
+      geminiApiKey: settings.geminiApiKey ? '***' : null,
     };
 
     res.json(safeSettings);
@@ -51,6 +52,10 @@ export const updateSettings = async (req: Request, res: Response) => {
       isActive,
       pageUrl,
       organizationId,
+      llmProvider,
+      geminiApiKey,
+      geminiModel,
+      openaiModel,
     } = req.body;
 
     const updateData: any = {};
@@ -70,6 +75,12 @@ export const updateSettings = async (req: Request, res: Response) => {
     if (openaiApiKey !== undefined && openaiApiKey !== '***') {
       updateData.openaiApiKey = encrypt(openaiApiKey);
     }
+    if (geminiApiKey !== undefined && geminiApiKey !== '***') {
+      updateData.geminiApiKey = encrypt(geminiApiKey);
+    }
+    if (llmProvider !== undefined) updateData.llmProvider = llmProvider;
+    if (geminiModel !== undefined) updateData.geminiModel = geminiModel;
+    if (openaiModel !== undefined) updateData.openaiModel = openaiModel;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (pageUrl !== undefined) updateData.pageUrl = pageUrl;
     if (organizationId !== undefined) updateData.organizationId = organizationId;
@@ -95,6 +106,7 @@ export const updateSettings = async (req: Request, res: Response) => {
       linkedinApiToken: settings.linkedinApiToken ? '***' : null,
       linkedinApiSecret: settings.linkedinApiSecret ? '***' : null,
       openaiApiKey: settings.openaiApiKey ? '***' : null,
+      geminiApiKey: settings.geminiApiKey ? '***' : null,
     };
 
     res.json(safeSettings);
@@ -145,3 +157,22 @@ export const testOpenAI = async (_req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to test OpenAI connection' });
   }
 };
+
+export const testGemini = async (_req: Request, res: Response) => {
+  try {
+    const getGemini = (await import('../config/gemini')).default;
+    const gemini = await getGemini();
+    const settings = await prisma.settings.findUnique({ where: { key: 'singleton' } });
+    const modelName = settings?.geminiModel || process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+
+    logger.info(`Testing Gemini connection with model: ${modelName}`);
+    const model = gemini.getGenerativeModel({ model: modelName });
+    const result = await model.generateContent('Say "Gemini connection successful"');
+    const content = result.response.text();
+    res.json({ success: true, message: content });
+  } catch (error: any) {
+    logger.error('Error testing Gemini:', error);
+    res.status(500).json({ error: `Failed to test Gemini connection: ${error.message}` });
+  }
+};
+

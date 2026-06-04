@@ -1,4 +1,5 @@
 import getOpenAI from '../config/openai';
+import getGemini from '../config/gemini';
 import prisma from '../config/database';
 import logger from '../utils/logger';
 
@@ -28,12 +29,6 @@ const ANGLES = [
 ];
 
 class AIGeneratorService {
-  private model: string;
-
-  constructor() {
-    this.model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-  }
-
   async generateDrafts(articleId: string): Promise<number> {
     const article = await prisma.newsArticle.findUnique({ where: { id: articleId } });
     if (!article) throw new Error(`Article ${articleId} not found`);
@@ -53,20 +48,43 @@ class AIGeneratorService {
     const systemPrompt = this.buildSystemPrompt(agency, services, insight?.summary, insight?.notes);
     const userPrompt = this.buildUserPrompt(article, insight, agency);
 
-    const openai = await getOpenAI();
-    const response = await openai.chat.completions.create({
-      model: this.model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.85,
-      response_format: { type: 'json_object' },
-      max_tokens: 2200,
-    });
+    const provider = settings?.llmProvider || process.env.LLM_PROVIDER || 'openai';
+    let content: string | null = null;
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No content generated from OpenAI');
+    if (provider === 'gemini') {
+      const geminiModel = settings?.geminiModel || process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+      logger.info(`Generating drafts using Gemini model: ${geminiModel}`);
+      const gemini = await getGemini();
+      const model = gemini.getGenerativeModel({
+        model: geminiModel,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.85,
+          maxOutputTokens: 2200,
+        },
+        systemInstruction: systemPrompt,
+      });
+
+      const result = await model.generateContent(userPrompt);
+      content = result.response.text();
+    } else {
+      const openaiModel = settings?.openaiModel || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+      logger.info(`Generating drafts using OpenAI model: ${openaiModel}`);
+      const openai = await getOpenAI();
+      const response = await openai.chat.completions.create({
+        model: openaiModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.85,
+        response_format: { type: 'json_object' },
+        max_tokens: 2200,
+      });
+      content = response.choices[0]?.message?.content || null;
+    }
+
+    if (!content) throw new Error(`No content generated from AI (${provider})`);
 
     const drafts = this.parseDrafts(content);
     const savedCount = await this.saveDrafts(drafts, articleId);
@@ -152,7 +170,11 @@ Per-draft hard rules:
 
   private parseDrafts(content: string): GeneratedDraft[] {
     try {
-      const parsed = JSON.parse(content);
+      let cleanJson = content.trim();
+      if (cleanJson.startsWith('```')) {
+        cleanJson = cleanJson.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      }
+      const parsed = JSON.parse(cleanJson);
       const drafts = Array.isArray(parsed) ? parsed : parsed.drafts;
       if (!Array.isArray(drafts)) throw new Error('drafts not an array');
       return drafts
